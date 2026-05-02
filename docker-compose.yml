@@ -1,0 +1,12 @@
+services:
+  clean-pdf:
+    build: .
+    volumes:
+      - ./input:/input
+      - ./output:/output
+      - ./archive:/archive
+    environment:
+      - INPUT_DIR=/input
+      - OUTPUT_DIR=/output
+      - ARCHIVE_DIR=/archive
+      - FLAGS=-l 3 --deskew --cover
