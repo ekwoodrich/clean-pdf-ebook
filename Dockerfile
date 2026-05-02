@@ -16,7 +16,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 WORKDIR /app
 
 # Copy the script and requirements
-COPY clean-pdf.py pyproject.toml .
+COPY clean_pdf.py pyproject.toml .
 
 # Install dependencies using uv
 RUN uv sync

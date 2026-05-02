@@ -23,7 +23,7 @@ echo "Processing $FILENAME..."
 echo "Flags: $FLAGS"
 
 # Run the cleaning script using uv
-uv run clean-pdf.py "$INPUT_FILE" -o "$OUTPUT_FILE" $FLAGS
+uv run clean_pdf.py "$INPUT_FILE" -o "$OUTPUT_FILE" $FLAGS
 
 echo "Cleaning complete. Output saved to $OUTPUT_FILE"
 
