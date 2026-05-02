@@ -1,0 +1,15 @@
+[project]
+name = "clean-pdf"
+version = "0.1.0"
+description = "A tool to clean scanned PDFs and remove yellow backgrounds."
+requires-python = ">=3.12"
+dependencies = [
+    "pymupdf",
+    "pillow",
+    "opencv-python",
+    "numpy",
+    "pytesseract",
+]
+
+[tool.uv]
+dev-dependencies = []
