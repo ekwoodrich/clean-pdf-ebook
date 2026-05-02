@@ -1,6 +1,6 @@
 services:
   clean-pdf:
-    build: .
+    image: ghcr.io/ekwoodrich/clean-pdf-ebook:main
     volumes:
       - ./input:/input
       - ./output:/output
