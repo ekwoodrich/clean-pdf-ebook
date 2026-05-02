@@ -23,13 +23,37 @@ def clean_page(image, level=3, deskew=False):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
     if deskew:
-        # Threshold to get text for deskewing
+        # Threshold to get text/elements
         _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-        coords = np.column_stack(np.where(thresh > 0))
-        if len(coords) > 0:
-            angle = cv2.minAreaRect(coords)[-1]
+        
+        # Find contours to distinguish text from graphics
+        contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        
+        text_points = []
+        has_large_graphics = False
+        page_area = gray.shape[0] * gray.shape[1]
+        
+        for cnt in contours:
+            area = cv2.contourArea(cnt)
+            x, y, w, h = cv2.boundingRect(cnt)
+            
+            # Heuristic for text: relatively small area, not spanning whole page
+            # Adjust these thresholds if needed
+            if 10 < area < (page_area * 0.05) and w < (gray.shape[1] * 0.8):
+                text_points.append(cnt)
+            elif area > (page_area * 0.1):
+                # If a single element takes up >10% of the page, it's likely a graphic
+                has_large_graphics = True
+        
+        # Only deskew if we have enough text bits and no massive graphics to confuse it
+        if len(text_points) > 20 and not has_large_graphics:
+            all_text_coords = np.concatenate(text_points)
+            angle = cv2.minAreaRect(all_text_coords)[-1]
+            
             if angle < -45: angle = -(90 + angle)
             else: angle = -angle
+            
+            # Limit angle to avoid extreme rotations on noise
             if abs(angle) < 10 and abs(angle) > 0.1:
                 (h, w) = image.shape[:2]
                 center = (w // 2, h // 2)
