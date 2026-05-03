@@ -11,6 +11,7 @@
 import argparse
 import os
 import sys
+import shutil
 import numpy as np
 import cv2
 import fitz  # PyMuPDF
@@ -21,6 +22,7 @@ import subprocess
 import tempfile
 
 def clean_page(image, level=3, deskew=False):
+# ... (rest of the clean_page function remains the same)
     # Convert to grayscale
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
@@ -199,10 +201,34 @@ def process_pdf(input_path, output_path, level=3, deskew=False, ocr=False, ocrmy
     doc.close()
     print(f"\nDone! Saved to {output_path}")
 
+def process_file(input_path, output_path, args):
+    _, ext = os.path.splitext(input_path.lower())
+    
+    # Ebook extensions to move directly
+    EBOOK_EXTENSIONS = {'.epub', '.azw3', '.mobi', '.rtf', '.html', '.txt'}
+    
+    if ext == '.pdf':
+        process_pdf(
+            input_path, 
+            output_path, 
+            level=args.level, 
+            deskew=args.deskew, 
+            ocr=args.ocr, 
+            ocrmypdf=args.ocrmypdf, 
+            lang=args.lang, 
+            cover=args.cover
+        )
+    elif ext in EBOOK_EXTENSIONS:
+        print(f"Non-pdf ebook file found and moved without processing: {os.path.basename(input_path)}")
+        shutil.move(input_path, output_path)
+    else:
+        # Silently ignore other extensions
+        pass
+
 def main():
     parser = argparse.ArgumentParser(description="Clean scanned PDFs and remove yellow backgrounds.")
-    parser.add_argument("input", help="Input PDF file")
-    parser.add_argument("-o", "--output", help="Output PDF file (default: input_cleaned.pdf)")
+    parser.add_argument("input", help="Input PDF file or directory")
+    parser.add_argument("-o", "--output", help="Output PDF file or directory")
     parser.add_argument("-l", "--level", type=int, choices=range(1, 6), default=3, 
                         help="Aggressiveness level (1-5, default 3)")
     parser.add_argument("-d", "--deskew", action="store_true", help="Attempt to align/deskew pages")
@@ -213,15 +239,42 @@ def main():
 
     args = parser.parse_args()
 
-    if not args.output:
-        base, ext = os.path.splitext(args.input)
-        args.output = f"{base} - cleaned{ext}"
-
     if not os.path.exists(args.input):
-        print(f"Error: File {args.input} not found.")
+        print(f"Error: Path {args.input} not found.")
         sys.exit(1)
 
-    process_pdf(args.input, args.output, level=args.level, deskew=args.deskew, ocr=args.ocr, ocrmypdf=args.ocrmypdf, lang=args.lang, cover=args.cover)
+    if os.path.isdir(args.input):
+        # Batch processing mode
+        input_dir = args.input
+        output_dir = args.output if args.output else input_dir
+        
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+            
+        for filename in os.listdir(input_dir):
+            input_path = os.path.join(input_dir, filename)
+            if os.path.isfile(input_path):
+                base, ext = os.path.splitext(filename)
+                if ext.lower() == '.pdf':
+                    out_filename = f"{base} - cleaned{ext}"
+                else:
+                    out_filename = filename
+                    
+                output_path = os.path.join(output_dir, out_filename)
+                process_file(input_path, output_path, args)
+    else:
+        # Single file mode
+        input_path = args.input
+        if not args.output:
+            base, ext = os.path.splitext(input_path)
+            if ext.lower() == '.pdf':
+                output_path = f"{base} - cleaned{ext}"
+            else:
+                output_path = input_path # Should not really happen with the move logic but being safe
+        else:
+            output_path = args.output
+            
+        process_file(input_path, output_path, args)
 
 if __name__ == "__main__":
     main()
