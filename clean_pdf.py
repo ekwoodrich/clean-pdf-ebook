@@ -110,7 +110,8 @@ def process_pdf(input_path, output_path, level=3, deskew=False, ocr=False, lang=
     matrix = fitz.Matrix(zoom, zoom)
 
     for page_num in range(len(doc)):
-        print(f"  Page {page_num + 1}/{len(doc)}", end="\r")
+        print(f"  Page {page_num + 1}/{len(doc)}")
+        sys.stdout.flush()
         page = doc[page_num]
         
         # If --cover is set and it's the first page, copy it directly
