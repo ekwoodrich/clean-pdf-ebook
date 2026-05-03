@@ -5,6 +5,7 @@ set -e
 INPUT_DIR=${INPUT_DIR:-/input}
 OUTPUT_DIR=${OUTPUT_DIR:-/output}
 ARCHIVE_DIR=${ARCHIVE_DIR:-/archive}
+FAILED_DIR=${FAILED_DIR:-/failed}
 FLAGS=${FLAGS:-"-l 3"}
 
 # Find all PDFs in the input directory
@@ -35,7 +36,8 @@ for INPUT_FILE in "${INPUT_FILES[@]}"; do
         echo "Archiving $FILENAME to $ARCHIVE_DIR..."
         mv "$INPUT_FILE" "$ARCHIVE_DIR/"
     else
-        echo "ERROR: Failed to process $FILENAME. Skipping archive step."
+        echo "ERROR: Failed to process $FILENAME. Moving to $FAILED_DIR to prevent infinite loops."
+        mv "$INPUT_FILE" "$FAILED_DIR/"
     fi
 done
 

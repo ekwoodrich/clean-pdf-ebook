@@ -5,8 +5,10 @@ services:
       - ./input:/input
       - ./output:/output
       - ./archive:/archive
+      - ./failed:/failed
     environment:
       - INPUT_DIR=/input
       - OUTPUT_DIR=/output
       - ARCHIVE_DIR=/archive
+      - FAILED_DIR=/failed
       - FLAGS=-l 3 --deskew --cover
