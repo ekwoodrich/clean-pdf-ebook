@@ -7,28 +7,37 @@ OUTPUT_DIR=${OUTPUT_DIR:-/output}
 ARCHIVE_DIR=${ARCHIVE_DIR:-/archive}
 FLAGS=${FLAGS:-"-l 3"}
 
-# Find the first PDF in the input directory
-INPUT_FILE=$(ls "$INPUT_DIR"/*.pdf | head -n 1)
+# Find all PDFs in the input directory
+shopt -s nullglob
+INPUT_FILES=("$INPUT_DIR"/*.pdf)
 
-if [ -z "$INPUT_FILE" ]; then
+if [ ${#INPUT_FILES[@]} -eq 0 ]; then
     echo "No PDF files found in $INPUT_DIR"
     exit 0
 fi
 
-FILENAME=$(basename "$INPUT_FILE")
-BASENAME="${FILENAME%.*}"
-OUTPUT_FILE="$OUTPUT_DIR/$BASENAME - cleaned.pdf"
+echo "Found ${#INPUT_FILES[@]} PDF(s) to process."
 
-echo "Processing $FILENAME..."
-echo "Flags: $FLAGS"
+for INPUT_FILE in "${INPUT_FILES[@]}"; do
+    FILENAME=$(basename "$INPUT_FILE")
+    BASENAME="${FILENAME%.*}"
+    OUTPUT_FILE="$OUTPUT_DIR/$BASENAME - cleaned.pdf"
 
-# Run the cleaning script using uv
-uv run clean_pdf.py "$INPUT_FILE" -o "$OUTPUT_FILE" $FLAGS
+    echo "--------------------------------------------"
+    echo "Processing $FILENAME..."
+    echo "Flags: $FLAGS"
 
-echo "Cleaning complete. Output saved to $OUTPUT_FILE"
+    # Run the cleaning script using uv
+    if uv run clean_pdf.py "$INPUT_FILE" -o "$OUTPUT_FILE" $FLAGS; then
+        echo "Cleaning complete. Output saved to $OUTPUT_FILE"
+        
+        # Move the original file to the archive directory
+        echo "Archiving $FILENAME to $ARCHIVE_DIR..."
+        mv "$INPUT_FILE" "$ARCHIVE_DIR/"
+    else
+        echo "ERROR: Failed to process $FILENAME. Skipping archive step."
+    fi
+done
 
-# Move the original file to the archive directory
-echo "Archiving $FILENAME to $ARCHIVE_DIR..."
-mv "$INPUT_FILE" "$ARCHIVE_DIR/"
-
-echo "Done."
+echo "--------------------------------------------"
+echo "Batch processing complete."
