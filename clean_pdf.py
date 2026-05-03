@@ -155,12 +155,11 @@ def process_pdf(input_path, output_path, level=3, deskew=False, ocr=False, lang=
             # insert_image will automatically use CCITT or Flate for binary/PNG
             new_page.insert_image(new_page.rect, stream=img_bytes)
 
-    output_doc.save(output_path, garbage=3, deflate=True)
-    
     # Copy metadata from original to output
     output_doc.set_metadata(doc.metadata)
-    output_doc.save(output_path, incremental=True, encryption=fitz.PDF_ENCRYPT_KEEP)
-    
+
+    # Save with optimization and compression
+    output_doc.save(output_path, garbage=3, deflate=True)
     output_doc.close()
     doc.close()
     print(f"\nDone! Saved to {output_path}")
