@@ -5,6 +5,7 @@ FROM python:3.12-slim
 # tesseract-ocr for OCR, libgl1 for OpenCV, etc.
 RUN apt-get update && apt-get install -y \
     tesseract-ocr \
+    ocrmypdf \
     libgl1 \
     libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*

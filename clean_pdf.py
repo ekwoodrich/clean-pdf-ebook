@@ -17,6 +17,8 @@ import fitz  # PyMuPDF
 from PIL import Image
 import pytesseract
 import io
+import subprocess
+import tempfile
 
 def clean_page(image, level=3, deskew=False):
     # Convert to grayscale
@@ -90,9 +92,13 @@ def clean_page(image, level=3, deskew=False):
     
     return final_img
 
-def process_pdf(input_path, output_path, level=3, deskew=False, ocr=False, lang='eng', cover=False):
+def process_pdf(input_path, output_path, level=3, deskew=False, ocr=False, ocrmypdf=False, lang='eng', cover=False):
     print(f"Processing {input_path}...")
     
+    if ocr and ocrmypdf:
+        print("Error: Cannot use both --ocr and --ocrmypdf. Please choose one.")
+        sys.exit(1)
+
     if ocr:
         # Check if tesseract is available
         try:
@@ -100,6 +106,14 @@ def process_pdf(input_path, output_path, level=3, deskew=False, ocr=False, lang=
         except pytesseract.TesseractNotFoundError:
             print("Error: Tesseract OCR not found. Please install it to use the --ocr flag.")
             print("On Debian/Ubuntu: sudo apt-get install tesseract-ocr")
+            sys.exit(1)
+
+    if ocrmypdf:
+        # Check if ocrmypdf is available
+        try:
+            subprocess.run(["ocrmypdf", "--version"], check=True, capture_output=True)
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            print("Error: ocrmypdf not found. Please install it to use the --ocrmypdf flag.")
             sys.exit(1)
 
     doc = fitz.open(input_path)
@@ -131,7 +145,9 @@ def process_pdf(input_path, output_path, level=3, deskew=False, ocr=False, lang=
             img = cv2.cvtColor(img, cv2.COLOR_RGBA2BGR)
         
         # Clean image
-        cleaned_img = clean_page(img, level=level, deskew=deskew)
+        # If using ocrmypdf, we disable our custom deskew to let ocrmypdf handle it better
+        effective_deskew = deskew if not ocrmypdf else False
+        cleaned_img = clean_page(img, level=level, deskew=effective_deskew)
         
         # Convert back to RGB/Grayscale for PIL
         # Since it's binary, 1-channel is enough and more efficient
@@ -158,9 +174,28 @@ def process_pdf(input_path, output_path, level=3, deskew=False, ocr=False, lang=
     # Copy metadata from original to output
     output_doc.set_metadata(doc.metadata)
 
-    # Save with optimization and compression
-    output_doc.save(output_path, garbage=3, deflate=True)
-    output_doc.close()
+    if ocrmypdf:
+        # Save to a temporary file first, then run ocrmypdf
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+            tmp_path = tmp.name
+        
+        try:
+            output_doc.save(tmp_path, garbage=3, deflate=True)
+            output_doc.close()
+            
+            print(f"Running ocrmypdf on cleaned pages...")
+            cmd = ["ocrmypdf", "--language", lang, "--optimize", "1", "--skip-text", tmp_path, output_path]
+            if deskew:
+                cmd.append("--deskew")
+            subprocess.run(cmd, check=True)
+        finally:
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+    else:
+        # Save with optimization and compression
+        output_doc.save(output_path, garbage=3, deflate=True)
+        output_doc.close()
+    
     doc.close()
     print(f"\nDone! Saved to {output_path}")
 
@@ -171,7 +206,8 @@ def main():
     parser.add_argument("-l", "--level", type=int, choices=range(1, 6), default=3, 
                         help="Aggressiveness level (1-5, default 3)")
     parser.add_argument("-d", "--deskew", action="store_true", help="Attempt to align/deskew pages")
-    parser.add_argument("--ocr", action="store_true", help="Perform OCR to make the PDF searchable")
+    parser.add_argument("--ocr", action="store_true", help="Perform OCR using pytesseract directly")
+    parser.add_argument("--ocrmypdf", action="store_true", help="Perform OCR using ocrmypdf after cleaning")
     parser.add_argument("--cover", action="store_true", help="Treat the first page as a cover (skip processing)")
     parser.add_argument("--lang", default="eng", help="OCR language (default: eng)")
 
@@ -185,7 +221,7 @@ def main():
         print(f"Error: File {args.input} not found.")
         sys.exit(1)
 
-    process_pdf(args.input, args.output, level=args.level, deskew=args.deskew, ocr=args.ocr, lang=args.lang, cover=args.cover)
+    process_pdf(args.input, args.output, level=args.level, deskew=args.deskew, ocr=args.ocr, ocrmypdf=args.ocrmypdf, lang=args.lang, cover=args.cover)
 
 if __name__ == "__main__":
     main()
